@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "build": "tsc --noEmit",
+    "deploy": "node -e \"import('./deploy.mjs').then(m => m.deploy())\"",
+    "setup": "node -e \"import('./deploy.mjs').then(m => m.setup())\"",
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "db:init": "wrangler d1 execute funkin-online-db --file=./migrations/0001_initial.sql",
-    "db:seed": "wrangler d1 execute funkin-online-db --file=./migrations/0002_seed.sql",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
