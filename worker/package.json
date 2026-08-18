@@ -17,8 +17,7 @@
   "dependencies": {
     "sanitize-html": "^2.13.0"
   },
-  "allowScripts": {
-    "esbuild@0.17.19": true,
-    "workerd@1.20250718.0": true
+  "overrides": {
+    "esbuild": "0.17.19"
   }
 }
