@@ -1,0 +1,38 @@
+name = "funkin-online"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "funkin-online-db"
+database_id = "YOUR_D1_DATABASE_ID"
+
+# R2 Bucket for file storage
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "funkin-online-files"
+
+# KV for cooldowns and ephemeral data
+[[kv_namespaces]]
+binding = "KV"
+id = "YOUR_KV_NAMESPACE_ID"
+
+# Environment variables
+[vars]
+JWT_SECRET = "CHANGE_ME_TO_A_SECURE_SECRET"
+NETWORK_ENABLED = "true"
+DISABLE_IP_LOCK = "false"
+
+# Durable Objects
+[durable_objects]
+bindings = [
+  { name = "GAME_ROOM", class_name = "GameRoomDO" },
+  { name = "NETWORK_ROOM", class_name = "NetworkRoomDO" },
+  { name = "ROOM_REGISTRY", class_name = "RoomRegistryDO" }
+]
+
+[migrations]
+tag = "v1"
+new_classes = ["GameRoomDO", "NetworkRoomDO", "RoomRegistryDO"]
