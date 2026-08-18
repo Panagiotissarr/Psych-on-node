@@ -1,12 +1,16 @@
 import { execSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 
 function run(cmd) {
   console.log(`> ${cmd}`);
   try {
-    return execSync(cmd, { encoding: 'utf8', stdio: 'pipe' }).trim();
+    const output = execSync(cmd, { encoding: 'utf8', stdio: 'pipe' });
+    return output.trim();
   } catch (err) {
-    console.error(err.stdout || err.message);
+    const stderr = err.stderr || '';
+    const stdout = err.stdout || '';
+    const msg = stderr || stdout || err.message;
+    console.error(msg);
     return null;
   }
 }
@@ -26,10 +30,16 @@ function patchToml(toml, dbId, kvId) {
 export async function setup() {
   console.log('=== Setting up Cloudflare resources ===\n');
 
+  if (!process.env.CLOUDFLARE_API_TOKEN) {
+    console.error('ERROR: CLOUDFLARE_API_TOKEN env var is not set.');
+    console.error('Create a token at: https://dash.cloudflare.com/profile/api-tokens');
+    console.error('Required permissions: Workers Scripts (Edit), D1 (Edit), KV Storage (Edit), R2 Storage (Edit)');
+    process.exit(1);
+  }
+
   const tomlPath = 'wrangler.toml';
   let toml = readFileSync(tomlPath, 'utf8');
 
-  // Check if already set up
   if (!toml.includes('YOUR_D1_DATABASE_ID')) {
     console.log('Resources already configured in wrangler.toml');
     return;
@@ -44,6 +54,8 @@ export async function setup() {
     if (dbId) {
       console.log(`\nD1 database_id: ${dbId}`);
       toml = patchToml(toml, dbId, null);
+    } else {
+      console.error('Failed to extract D1 database ID from output');
     }
   }
 
@@ -56,42 +68,49 @@ export async function setup() {
     if (kvId) {
       console.log(`\nKV namespace id: ${kvId}`);
       toml = patchToml(toml, null, kvId);
+    } else {
+      console.error('Failed to extract KV namespace ID from output');
     }
   }
 
   // Create R2
   console.log('\nCreating R2 bucket...');
-  run('wrangler r2 bucket create funkin-online-files');
+  const r2Out = run('wrangler r2 bucket create funkin-online-files');
+  if (r2Out) console.log(r2Out);
 
   // Write updated toml
   writeFileSync(tomlPath, toml);
   console.log('\n=== wrangler.toml updated ===');
-  console.log('Now run: npm run deploy');
 }
 
 export async function deploy() {
   console.log('=== Deploying to Cloudflare Workers ===\n');
 
+  if (!process.env.CLOUDFLARE_API_TOKEN) {
+    console.error('ERROR: CLOUDFLARE_API_TOKEN env var is not set.');
+    console.error('Create a token at: https://dash.cloudflare.com/profile/api-tokens');
+    console.error('Required permissions: Workers Scripts (Edit), D1 (Edit), KV Storage (Edit), R2 Storage (Edit)');
+    process.exit(1);
+  }
+
   const tomlPath = 'wrangler.toml';
-  const toml = readFileSync(tomlPath, 'utf8');
+  let toml = readFileSync(tomlPath, 'utf8');
 
   // If resources not set up yet, do setup first
   if (toml.includes('YOUR_D1_DATABASE_ID')) {
     console.log('Resources not set up yet, running setup first...\n');
     await setup();
-    // Re-read updated toml
-    const updatedToml = readFileSync(tomlPath, 'utf8');
-    if (updatedToml.includes('YOUR_D1_DATABASE_ID')) {
-      console.error('Setup failed. Please run manually: npx wrangler login, then npm run setup');
+    toml = readFileSync(tomlPath, 'utf8');
+    if (toml.includes('YOUR_D1_DATABASE_ID')) {
+      console.error('\nSetup failed. Check CLOUDFLARE_API_TOKEN and try again.');
       process.exit(1);
     }
   }
 
   // Apply migrations
   console.log('\nApplying database migrations...');
-  const dbId = extractId(toml, /database_id\s*=\s*"([^"]+)"/);
-  const dbName = 'funkin-online-db';
-  run(`wrangler d1 execute ${dbName} --file=./migrations/0001_initial.sql --remote`);
+  const migOut = run('wrangler d1 execute funkin-online-db --file=./migrations/0001_initial.sql --remote');
+  if (migOut) console.log(migOut);
 
   // Deploy
   console.log('\nDeploying worker...');
